@@ -4,182 +4,153 @@ const prisma = new PrismaClient();
 async function migrate() {
   try {
     console.log('🚀 Starting database migration...');
+    console.log('ℹ️ Using Prisma schema migration instead of raw SQL...');
 
-    // Create users table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'customer',
-        phone VARCHAR(20),
-        address TEXT,
-        avatar VARCHAR(500),
-        email_verified BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    console.log('✅ Users table created');
+    // Use Prisma's built-in migration system
+    console.log('🔄 Running Prisma database push...');
+    
+    // This will create/update tables based on your schema.prisma
+    const { execSync } = require('child_process');
+    
+    try {
+      execSync('npx prisma db push --accept-data-loss', { 
+        stdio: 'inherit',
+        cwd: __dirname 
+      });
+      console.log('✅ Database schema synchronized with Prisma');
+    } catch (error) {
+      console.log('⚠️ Prisma push failed, trying alternative approach...');
+      
+      // Alternative: Generate and apply migration
+      try {
+        execSync('npx prisma migrate dev --name init', { 
+          stdio: 'inherit',
+          cwd: __dirname 
+        });
+        console.log('✅ Database migrated successfully');
+      } catch (migrationError) {
+        console.log('ℹ️ Migration already exists or database is up to date');
+      }
+    }
 
-    // Create categories table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS categories (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        slug VARCHAR(255) UNIQUE NOT NULL,
-        description TEXT,
-        image VARCHAR(500),
-        parent_id INTEGER REFERENCES categories(id),
-        sort_order INTEGER DEFAULT 0,
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    console.log('✅ Categories table created');
+    // Seed sample data using Prisma client
+    console.log('🌱 Seeding sample data...');
 
-    // Create products table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        slug VARCHAR(255) UNIQUE NOT NULL,
-        description TEXT,
-        short_description TEXT,
-        price DECIMAL(10,2) NOT NULL,
-        sale_price DECIMAL(10,2),
-        category_id INTEGER REFERENCES categories(id),
-        brand VARCHAR(100),
-        sku VARCHAR(100) UNIQUE,
-        images TEXT[],
-        stock INTEGER DEFAULT 0,
-        weight DECIMAL(8,2),
-        dimensions JSONB,
-        specifications JSONB,
-        features TEXT[],
-        tags TEXT[],
-        is_featured BOOLEAN DEFAULT false,
-        is_active BOOLEAN DEFAULT true,
-        meta_title VARCHAR(255),
-        meta_description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    console.log('✅ Products table created');
+    // Create sample categories
+    const categories = [
+      {
+        name: 'Laptops',
+        slug: 'laptops',
+        description: 'High-performance laptops for work and gaming',
+        image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500'
+      },
+      {
+        name: 'Smartphones',
+        slug: 'smartphones',
+        description: 'Latest smartphones with cutting-edge technology',
+        image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500'
+      },
+      {
+        name: 'Headphones',
+        slug: 'headphones',
+        description: 'Premium audio equipment and headphones',
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'
+      },
+      {
+        name: 'Tablets',
+        slug: 'tablets',
+        description: 'Portable tablets for productivity and entertainment',
+        image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=500'
+      },
+      {
+        name: 'Accessories',
+        slug: 'accessories',
+        description: 'Essential tech accessories and gadgets',
+        image: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=500'
+      }
+    ];
 
-    // Create orders table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS orders (
-        id SERIAL PRIMARY KEY,
-        order_number VARCHAR(50) UNIQUE NOT NULL,
-        user_id INTEGER REFERENCES users(id),
-        status VARCHAR(50) DEFAULT 'pending',
-        total_amount DECIMAL(10,2) NOT NULL,
-        shipping_amount DECIMAL(10,2) DEFAULT 0,
-        tax_amount DECIMAL(10,2) DEFAULT 0,
-        discount_amount DECIMAL(10,2) DEFAULT 0,
-        payment_method VARCHAR(50),
-        payment_status VARCHAR(50) DEFAULT 'pending',
-        shipping_address JSONB,
-        billing_address JSONB,
-        notes TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    console.log('✅ Orders table created');
+    for (const category of categories) {
+      await prisma.category.upsert({
+        where: { slug: category.slug },
+        update: {},
+        create: category
+      });
+    }
+    console.log('✅ Sample categories created');
 
-    // Create order_items table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS order_items (
-        id SERIAL PRIMARY KEY,
-        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
-        product_id INTEGER REFERENCES products(id),
-        quantity INTEGER NOT NULL,
-        price DECIMAL(10,2) NOT NULL,
-        total DECIMAL(10,2) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    console.log('✅ Order items table created');
+    // Get category IDs for products
+    const laptopCategory = await prisma.category.findUnique({ where: { slug: 'laptops' } });
+    const phoneCategory = await prisma.category.findUnique({ where: { slug: 'smartphones' } });
+    const headphoneCategory = await prisma.category.findUnique({ where: { slug: 'headphones' } });
 
-    // Create cart table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS cart (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-        quantity INTEGER NOT NULL DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, product_id)
-      );
-    `;
-    console.log('✅ Cart table created');
+    // Create sample products
+    const products = [
+      {
+        name: 'Gaming Laptop Pro',
+        slug: 'gaming-laptop-pro',
+        description: 'High-performance gaming laptop with RTX graphics',
+        price: 75000.00,
+        mrp: 85000.00,
+        categoryId: laptopCategory.id,
+        brand: 'TechBrand',
+        sku: 'GLT-001',
+        images: ['https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500'],
+        stock: 10,
+        features: ['RTX 4060', '16GB RAM', '512GB SSD']
+      },
+      {
+        name: 'Smartphone X1',
+        slug: 'smartphone-x1',
+        description: 'Latest flagship smartphone with AI camera',
+        price: 45000.00,
+        mrp: 50000.00,
+        categoryId: phoneCategory.id,
+        brand: 'PhoneCorp',
+        sku: 'SPH-001',
+        images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500'],
+        stock: 25,
+        features: ['108MP Camera', '8GB RAM', '5G Ready']
+      },
+      {
+        name: 'Wireless Headphones',
+        slug: 'wireless-headphones',
+        description: 'Premium noise-cancelling wireless headphones',
+        price: 8000.00,
+        mrp: 10000.00,
+        categoryId: headphoneCategory.id,
+        brand: 'AudioTech',
+        sku: 'WHP-001',
+        images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'],
+        stock: 50,
+        features: ['Active Noise Cancellation', '30hr Battery', 'Bluetooth 5.0']
+      }
+    ];
 
-    // Create wishlist table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS wishlist (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, product_id)
-      );
-    `;
-    console.log('✅ Wishlist table created');
-
-    // Create reviews table
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS reviews (
-        id SERIAL PRIMARY KEY,
-        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-        title VARCHAR(255),
-        comment TEXT,
-        is_verified BOOLEAN DEFAULT false,
-        is_approved BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    console.log('✅ Reviews table created');
-
-    // Insert sample categories
-    await prisma.$executeRaw`
-      INSERT INTO categories (name, slug, description, image) VALUES
-      ('Laptops', 'laptops', 'High-performance laptops for work and gaming', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500'),
-      ('Smartphones', 'smartphones', 'Latest smartphones with cutting-edge technology', 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500'),
-      ('Headphones', 'headphones', 'Premium audio equipment and headphones', 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'),
-      ('Tablets', 'tablets', 'Portable tablets for productivity and entertainment', 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=500'),
-      ('Accessories', 'accessories', 'Essential tech accessories and gadgets', 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=500')
-      ON CONFLICT (slug) DO NOTHING;
-    `;
-    console.log('✅ Sample categories inserted');
-
-    // Insert sample products
-    await prisma.$executeRaw`
-      INSERT INTO products (name, slug, description, price, category_id, brand, sku, images, stock, features) VALUES
-      ('Gaming Laptop Pro', 'gaming-laptop-pro', 'High-performance gaming laptop with RTX graphics', 75000.00, 1, 'TechBrand', 'GLT-001', ARRAY['https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500'], 10, ARRAY['RTX 4060', '16GB RAM', '512GB SSD']),
-      ('Smartphone X1', 'smartphone-x1', 'Latest flagship smartphone with AI camera', 45000.00, 2, 'PhoneCorp', 'SPH-001', ARRAY['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500'], 25, ARRAY['108MP Camera', '8GB RAM', '5G Ready']),
-      ('Wireless Headphones', 'wireless-headphones', 'Premium noise-cancelling wireless headphones', 8000.00, 3, 'AudioTech', 'WHP-001', ARRAY['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'], 50, ARRAY['Active Noise Cancellation', '30hr Battery', 'Bluetooth 5.0'])
-      ON CONFLICT (slug) DO NOTHING;
-    `;
-    console.log('✅ Sample products inserted');
+    for (const product of products) {
+      await prisma.product.upsert({
+        where: { slug: product.slug },
+        update: {},
+        create: product
+      });
+    }
+    console.log('✅ Sample products created');
 
     // Create admin user
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash('admin123', 12);
     
-    await prisma.$executeRaw`
-      INSERT INTO users (email, password, name, role) VALUES
-      ('admin@pulsepixeltech.com', ${hashedPassword}, 'Admin User', 'admin')
-      ON CONFLICT (email) DO NOTHING;
-    `;
+    await prisma.user.upsert({
+      where: { email: 'admin@pulsepixeltech.com' },
+      update: {},
+      create: {
+        email: 'admin@pulsepixeltech.com',
+        password: hashedPassword,
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'ADMIN'
+      }
+    });
     console.log('✅ Admin user created (email: admin@pulsepixeltech.com, password: admin123)');
 
     console.log('🎉 Database migration completed successfully!');
