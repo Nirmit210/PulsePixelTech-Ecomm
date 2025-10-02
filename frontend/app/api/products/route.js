@@ -3,16 +3,19 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
-    const search = searchParams.get('search');
-    const minPrice = searchParams.get('minPrice');
-    const maxPrice = searchParams.get('maxPrice');
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 12;
+    const url = new URL(request.url);
+    const category = url.searchParams.get('category');
+    const search = url.searchParams.get('search');
+    const minPrice = url.searchParams.get('minPrice');
+    const maxPrice = url.searchParams.get('maxPrice');
+    const sortBy = url.searchParams.get('sortBy') || 'createdAt';
+    const page = parseInt(url.searchParams.get('page')) || 1;
+    const limit = parseInt(url.searchParams.get('limit')) || 12;
 
     const skip = (page - 1) * limit;
 
