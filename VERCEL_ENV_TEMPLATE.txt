@@ -1,0 +1,47 @@
+# Copy these environment variables to Vercel Dashboard
+# Go to: Project Settings → Environment Variables → Add New
+
+# Database (Required)
+DATABASE_URL=postgresql://username:password@host:port/database
+
+# JWT Security (Required)
+JWT_SECRET=your_super_secret_jwt_key_minimum_32_characters_long_for_security
+JWT_EXPIRE=7d
+
+# AI Chatbot (Required)
+SAMBANOVA_API_KEY=your_sambanova_api_key_here
+
+# Frontend URLs (Required - Update after deployment)
+NEXT_PUBLIC_API_URL=https://your-project-name.vercel.app/api
+FRONTEND_URL=https://your-project-name.vercel.app
+
+# Environment
+NODE_ENV=production
+
+# Email Configuration (Optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_app_password
+EMAIL_FROM=noreply@pulsepixeltech.com
+
+# Security
+BCRYPT_ROUNDS=12
+
+# Payment Gateway (Optional - if using Razorpay)
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+
+# File Upload (Optional)
+MAX_FILE_SIZE=5242880
+UPLOAD_PATH=./uploads
+
+# Session Security (Optional)
+SESSION_SECRET=your_session_secret_here
+
+# Instructions:
+# 1. Replace all "your_*" values with actual credentials
+# 2. After deployment, update NEXT_PUBLIC_API_URL and FRONTEND_URL with your actual Vercel URL
+# 3. For DATABASE_URL, use format: postgresql://username:password@host:port/database
+# 4. JWT_SECRET should be at least 32 characters long
+# 5. Don't include quotes around values in Vercel dashboard
